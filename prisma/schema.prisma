@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ================================
+// ENUMS
+// ================================
+
+enum ChurchStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum UserRole {
+  MEMBER
+  CHURCH_ADMIN
+  SUPER_ADMIN
+}
+
+enum PaymentType {
+  TITHE
+  OFFERING
+  SEED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum NotificationType {
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  WELCOME
+  CHURCH_APPROVED
+  CHURCH_SUSPENDED
+}
+
+// ================================
+// MODELS
+// ================================
+
+model Church {
+  id               String        @id @default(cuid())
+  name             String
+  email            String        @unique
+  phone            String
+  address          String
+  paystackSubId    String?       // filled after Paystack subaccount is created
+  status           ChurchStatus  @default(PENDING)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // relations
+  members          Member[]
+  payments         Payment[]
+  dailyAggregates  DailyAggregate[]
+  notifications    Notification[]
+}
+
+model Member {
+  id          String    @id @default(cuid())
+  name        String
+  email       String    @unique
+  phone       String?
+  password    String    // hashed — NextAuth credential login
+  role        UserRole  @default(MEMBER)
+  memberId    String    @unique // human-readable e.g. "SHF-00123"
+  churchId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // relations
+  church        Church         @relation(fields: [churchId], references: [id])
+  payments      Payment[]
+  notifications Notification[]
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  amount         Int           // in kobo (Paystack standard) e.g. ₦1000 = 100000
+  type           PaymentType
+  status         PaymentStatus @default(PENDING)
+  reference      String        @unique // Paystack transaction ref
+  note           String?       // optional note from member
+  aiReceiptNote  String?       // AI-generated note stored after webhook confirms payment
+  paidAt         DateTime?     // set when webhook confirms SUCCESS
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  memberId  String
+  churchId  String
+
+  // relations
+  member  Member  @relation(fields: [memberId], references: [id])
+  church  Church  @relation(fields: [churchId], references: [id])
+}
+
+model DailyAggregate {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date  // just the date, no time
+  total     Int      // in kobo
+  count     Int      // number of payments that day
+  churchId  String
+
+  // relations
+  church  Church  @relation(fields: [churchId], references: [id])
+
+  @@unique([churchId, date]) // one row per church per day, no duplicates
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  message   String
+  sent      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  memberId  String?  // nullable — some notifications are church-level
+  churchId  String?
+
+  // relations
+  member  Member?  @relation(fields: [memberId], references: [id])
+  church  Church?  @relation(fields: [churchId], references: [id])
+}
