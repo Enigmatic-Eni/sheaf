@@ -48,17 +48,19 @@ export async function POST(request: NextRequest) {
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  const memberCount = await prisma.member.count();
+  const memberId = `SHF-${String(memberCount + 1).padStart(5, "0")}`;
+
   await prisma.member.create({
     data: {
       name: adminName,
       email: adminEmail,
       password: hashedPassword,
-      memberId: "SHF-00001", // first member of a brand new church
+      memberId,
       churchId: church.id,
       role: "CHURCH_ADMIN",
     },
   });
-
   return NextResponse.json({
     success: true,
     message: "Church registered! Awaiting approval.",

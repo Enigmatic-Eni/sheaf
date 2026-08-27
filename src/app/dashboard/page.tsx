@@ -20,9 +20,10 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-sm mx-auto mt-24 px-4">
       <h1 className="text-2xl font-bold">Dashboard</h1>
-      <p className="mt-2 text-gray-600">
-        Welcome back, {member.name}
-      </p>
+            <p className="mt-2 text-gray-600">Welcome back, {member.name}!</p>
+      {member.role !== "MEMBER" && (
+        <p className="mt-1 text-sm text-gray-400">Role: {member.role.replace("_", " ")}</p>
+      )}
     </div>
   );
 }
